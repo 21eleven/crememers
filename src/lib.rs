@@ -92,9 +92,9 @@ impl<Void: Default, B: Default> Pointed<Void, B> for Defaulted<Void> {
     }
 }
 
-trait Applicative<A, B, C>: Pointed<A, C> {
+trait Applicative<A, B, C>: Pointed<A, C> + Pointed<A, B> {
     type FoldingIn<T>;
-    fn lift_a2<F>(self, f: F, b: Self::FoldingIn<B>) -> Self::Target<C>
+    fn lift_a2<F>(self, f: F, b: Self::FoldingIn<B>) -> <Self as Functor<A, C>>::Target<C>
     where
         // Here A could alternatively be Functor::Inner
         F: Fn(A, B) -> C;
@@ -105,7 +105,7 @@ where
     Defaulted<A>: Functor<A, B>,
 {
     type FoldingIn<T> = Defaulted<B>;
-    fn lift_a2<F>(self, f: F, b: Self::FoldingIn<B>) -> Self::Target<C>
+    fn lift_a2<F>(self, f: F, b: Self::FoldingIn<B>) -> <Self as Functor<A, C>>::Target<C>
     where
         // Here A could alternatively be Functor::Inner
         F: Fn(A, B) -> C,
