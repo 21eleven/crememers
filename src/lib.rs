@@ -94,12 +94,7 @@ impl<Void: Default, B: Default> Pointed<Void, B> for Defaulted<Void> {
 
 trait Applicative<A, B, C>: Pointed<A, C> {
     type FoldingIn<T>;
-    fn lift_a2<F>(
-        self,
-        f: F,
-        // b: <(dyn Pointed<A, B, Target<B> = Self::Target<C>> + 'static) as Functor<A, B>>::Target<B>,
-        b: Self::FoldingIn<B>,
-    ) -> Self::Target<C>
+    fn lift_a2<F>(self, f: F, b: Self::FoldingIn<B>) -> Self::Target<C>
     where
         // Here A could alternatively be Functor::Inner
         F: Fn(A, B) -> C;
@@ -110,14 +105,7 @@ where
     Defaulted<A>: Functor<A, B>,
 {
     type FoldingIn<T> = Defaulted<B>;
-    // type FoldingIn<T> = <(dyn Functor<A, B, Target<B> = Defaulted<B>>) as Functor<A, B>>::Target<B>;
-    fn lift_a2<F>(
-        self,
-        f: F,
-        // b: <(dyn Pointed<A, B, Target<B> = Defaulted<B>> + 'static) as Functor<A, B>>::Target<B>,
-        // b: Defaulted<B>,
-        b: Self::FoldingIn<B>,
-    ) -> Self::Target<C>
+    fn lift_a2<F>(self, f: F, b: Self::FoldingIn<B>) -> Self::Target<C>
     where
         // Here A could alternatively be Functor::Inner
         F: Fn(A, B) -> C,
@@ -177,7 +165,6 @@ mod tests {
                 .map(|n| n.to_owned())
                 .collect()
         }
-        // combine(a.incorporate(), b.incorporate());
         assert_eq!(a.clone().lift_a2(combine, b), cab);
         assert_eq!(a.clone().lift_a2(combine, b.reset()), ca);
         assert_eq!(Defaulted::Default.lift_a2(combine, b), cb);
