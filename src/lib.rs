@@ -57,7 +57,6 @@ enum Identity<S> {
 // type within some wrapper type from Wrapper<A>
 // to Wrapper<B> using a function from A to B
 trait Functor<A, B> {
-    // type Inner;
     type Target<T>;
     fn func_map<F>(self, f: F) -> Self::Target<B>
     where
@@ -65,7 +64,6 @@ trait Functor<A, B> {
 }
 
 impl<A: Default, B: Default> Functor<A, B> for Defaulted<A> {
-    // type Inner = A;
     type Target<T> = Defaulted<B>;
     fn func_map<F>(self, f: F) -> Defaulted<B>
     where
@@ -93,21 +91,22 @@ impl<Void: Default, B: Default> Pointed<Void, B> for Defaulted<Void> {
 }
 
 trait Applicative<A, B, C>: Pointed<A, C> + Pointed<A, B> {
-    type FoldingIn<T>;
-    fn lift_a2<F>(self, f: F, b: Self::FoldingIn<B>) -> <Self as Functor<A, C>>::Target<C>
+    fn lift_a2<F>(
+        self,
+        f: F,
+        b: <Self as Functor<A, B>>::Target<B>,
+    ) -> <Self as Functor<A, C>>::Target<C>
     where
-        // Here A could alternatively be Functor::Inner
         F: Fn(A, B) -> C;
 }
 
-impl<A: Default, B: Default, C: Default> Applicative<A, B, C> for Defaulted<A>
-where
-    Defaulted<A>: Functor<A, B>,
-{
-    type FoldingIn<T> = Defaulted<B>;
-    fn lift_a2<F>(self, f: F, b: Self::FoldingIn<B>) -> <Self as Functor<A, C>>::Target<C>
+impl<A: Default, B: Default, C: Default> Applicative<A, B, C> for Defaulted<A> {
+    fn lift_a2<F>(
+        self,
+        f: F,
+        b: <Self as Functor<A, B>>::Target<B>,
+    ) -> <Self as Functor<A, C>>::Target<C>
     where
-        // Here A could alternatively be Functor::Inner
         F: Fn(A, B) -> C,
     {
         match (&self, &b) {
