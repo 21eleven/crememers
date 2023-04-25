@@ -116,6 +116,73 @@ impl<A: Default, B: Default, C: Default> Applicative<A, B, C> for Defaulted<A> {
     }
 }
 
+trait Semigroup {
+    fn append(self, rhs: Self) -> Self;
+}
+
+impl Semigroup for () {
+    fn append(self, unit: ()) -> () {}
+}
+
+impl<T> Semigroup for Vec<T> {
+    fn append(mut self, mut rhs: Self) -> Self {
+        Vec::append(&mut self, &mut rhs);
+        self
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum Validation<A, M> {
+    Valid(A),
+    Mangled(M),
+}
+
+impl<A, B, M> Functor<A, B> for Validation<A, M> {
+    type Target<X> = Validation<B, M>;
+    fn func_map<F>(self, f: F) -> Self::Target<B>
+    where
+        F: Fn(A) -> B,
+    {
+        match self {
+            Validation::Valid(a) => Validation::Valid(f(a)),
+            Validation::Mangled(m) => Validation::Mangled(m),
+        }
+    }
+}
+
+impl<Void, A, M> Pointed<Void, A> for Validation<Void, M>
+where
+    Validation<A, M>: Functor<Void, A>,
+{
+    fn point(pt: A) -> Self::Target<A> {
+        Validation::Valid(pt)
+    }
+}
+
+impl<A, M: Semigroup, B, C> Applicative<A, B, C> for Validation<A, M>
+where
+    Validation<B, M>: Functor<A, B>,
+    Validation<C, M>: Functor<A, C>,
+{
+    fn lift_a2<F>(
+        self,
+        f: F,
+        b: <Self as Functor<A, B>>::Target<B>,
+    ) -> <Self as Functor<A, C>>::Target<C>
+    where
+        F: Fn(A, B) -> C,
+    {
+        match (self, b) {
+            (Validation::Valid(a), Validation::Valid(b)) => Validation::Valid(f(a, b)),
+            (Validation::Mangled(m), Validation::Valid(_)) => Validation::Mangled(m),
+            (Validation::Valid(_), Validation::Mangled(m)) => Validation::Mangled(m),
+            (Validation::Mangled(m1), Validation::Mangled(m2)) => {
+                Validation::Mangled(m1.append(m2))
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeSet, HashSet};
@@ -168,5 +235,22 @@ mod tests {
         assert_eq!(a.clone().lift_a2(combine, b.reset()), ca);
         assert_eq!(Defaulted::Default.lift_a2(combine, b), cb);
         assert_eq!(Defaulted::Default.lift_a2(combine, b.reset()), cd);
+    }
+
+    #[test]
+    fn semigroup() {
+        let a = Validation::<usize, Vec<String>>::Valid(3);
+        let b = Validation::<usize, Vec<String>>::Valid(7);
+        let x = Validation::<usize, Vec<String>>::Mangled(vec!["oh".to_string()]);
+        let y = Validation::<usize, Vec<String>>::Mangled(vec!["no".to_string()]);
+
+        let add = |i: usize, j: usize| i + j;
+
+        assert_eq!(a.clone().lift_a2(add, b), Validation::Valid(10));
+        assert_eq!(a.lift_a2(add, y.clone()), y);
+        assert_eq!(
+            x.lift_a2(add, y),
+            Validation::Mangled(vec!["oh".to_string(), "no".to_string()])
+        );
     }
 }
